@@ -1,17 +1,14 @@
 {
   "id": "marvel-multiverse-chat-power-details",
-  "name": "marvel-multiverse-chat-power-details",
-  "title": "Marvel Multiverse – Chat Power Details",
-  "description": "Show ACTION, DURATION and COST of powers only on the first chat card (skips roll & post-damage cards; cleans up if other modules mutate).",
-  "version": "1.0.3",
-  "compatibility": { "minimum": "12", "verified": "13" },
-  "authors": [ { "name": "RodrigoSinistro" } ],
+  "title": "Marvel Multiverse - Chat Power Details",
+  "description": "Exibe Action/Duration/Cost/Trigger/Range no chat.",
+  "version": "1.2.4",
+  "compatibility": { "minimum": "10", "verified": "13" },
+  "authors": [{ "name": "Rodrigo Sinistro" }],
   "systems": ["marvel-multiverse"],
-  "esmodules": ["main.js"],
-  "styles": ["styles.css"],
-  "url": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details",
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/main.css"],
   "manifest": "https://raw.githubusercontent.com/rodrigosinistro/marvel-multiverse-chat-power-details/main/module.json",
-  "download": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details/releases/download/1.0.3/marvel-multiverse-chat-power-details-1.0.3.zip",
-  "readme": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details#readme",
-  "license": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details/blob/main/LICENSE"
+  "download": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details/releases/download/v1.2.4/marvel-multiverse-chat-power-details-1.2.4.zip",
+  "license": "MIT"
 }
