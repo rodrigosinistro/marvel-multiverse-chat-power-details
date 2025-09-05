@@ -1,15 +1,28 @@
 
 const MODULE_ID = "marvel-multiverse-chat-power-details";
-const MCPD_VER = "1.0.0";
+const MCPD_VER = "1.0.3";
 
 Hooks.once("ready", () => {
   console.log(`[${MODULE_ID}] v${MCPD_VER} ready`);
+  // Global observer: if another module later mutates a message (e.g., adds "Aplicar/½ Dano/Curar"),
+  // we remove our box from that message.
+  const chat = document.querySelector("#chat-log");
+  if (chat){
+    const obs = new MutationObserver((mlist) => {
+      for (const m of mlist){
+        for (const node of (m.addedNodes || [])){
+          scrubIfResultCard(node);
+        }
+        if (m.target) scrubIfResultCard(m.target);
+      }
+    });
+    obs.observe(chat, { childList: true, subtree: true });
+  }
 });
 
 const norm  = (s) => String(s||"").trim().toLowerCase();
 const clean = (s) => norm(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
 
-/** Parse item type + name from message.flavor (e.g., "ability: Melee<br/>power: Esmagar<br/>damagetype: health") */
 function parseFromFlavor(flavor){
   const out = {};
   const raw = String(flavor||"");
@@ -25,27 +38,13 @@ function parseFromFlavor(flavor){
 }
 
 function resolveActor(message){
-  try{
-    const sid = message?.speaker?.actor;
-    if (sid){
-      const a = game.actors?.get?.(sid);
-      if (a) return a;
-    }
-  }catch{}
-  try{
-    const tid = message?.speaker?.token;
-    if (tid){
-      const t = canvas?.tokens?.get?.(tid);
-      if (t?.actor) return t.actor;
-    }
-  }catch{}
+  try{ const sid = message?.speaker?.actor; if (sid){ const a = game.actors?.get?.(sid); if (a) return a; } }catch{}
+  try{ const tid = message?.speaker?.token; if (tid){ const t = canvas?.tokens?.get?.(tid); if (t?.actor) return t.actor; } }catch{}
   try{
     const alias = message?.speaker?.alias;
     if (alias){
       const c = clean(alias);
-      for (const t of canvas?.tokens?.placeables || []){
-        if (clean(t?.actor?.name) === c) return t.actor;
-      }
+      for (const t of canvas?.tokens?.placeables || []){ if (clean(t?.actor?.name) === c) return t.actor; }
       const a = game.actors?.getName?.(alias) || game.actors?.find?.(x => clean(x.name) === c);
       if (a) return a;
     }
@@ -59,10 +58,8 @@ function findItemOnActor(actor, type, name){
   if (!actor || !name) return null;
   const n = clean(name);
   try{
-    let it = actor.items.find(i => clean(i.name) === n && (!type || i.type === type));
-    if (it) return it;
-    it = actor.items.find(i => (!type || i.type === type) && (clean(i.name).includes(n) || n.includes(clean(i.name))));
-    if (it) return it;
+    let it = actor.items.find(i => clean(i.name) === n && (!type || i.type === type)); if (it) return it;
+    it = actor.items.find(i => (!type || i.type === type) && (clean(i.name).includes(n) || n.includes(clean(i.name)))); if (it) return it;
   }catch{}
   return null;
 }
@@ -81,14 +78,34 @@ function buildBox(s){
   return div;
 }
 
-// Inject only on the FIRST (non-roll) card to avoid duplication
-function tryInject(message, root){
-  const content = root.querySelector?.(".message-content") || root;
+function isResultLike(el){
+  if (!el) return false;
+  const content = el.querySelector?.(".message-content") || el;
+  if (!content) return false;
+  const txt = (content.textContent || "");
+  return content.querySelector(".dice-roll")
+      || content.querySelector('[class*="mmdr-"]')
+      || /Aplicar|½\s*Dano|Curar/i.test(txt);
+}
+
+function scrubIfResultCard(el){
+  if (!el || !(el instanceof HTMLElement)) return;
+  if (!isResultLike(el)) return;
+  const box = el.querySelector?.(".mcpd-box");
+  if (box) {
+    box.remove();
+    // console.log(`[${MODULE_ID}] removed box from result card`);
+  }
+}
+
+// Inject only on FIRST description card; extra delayed re-check to self-remove if another module mutates later
+function tryInject(message, html){
+  const content = html.querySelector?.(".message-content") || html;
   if (!content) return false;
   if (content.querySelector(".mcpd-box")) return false;
 
-  // Skip roll/result cards (they carry message.rolls)
-  if ((message?.rolls && message.rolls.length > 0) || message?.isRoll) return false;
+  // If already looks like a result card, skip
+  if (isResultLike(html)) return false;
 
   const { type, name } = parseFromFlavor(message?.flavor);
   if (!name || !(type === "power" || type === "poder")) return false;
@@ -100,14 +117,13 @@ function tryInject(message, root){
   if (!item) return false;
 
   content.appendChild(buildBox(item.system || {}));
+  // delayed re-check in case a helper modifies this same message shortly after
+  setTimeout(() => scrubIfResultCard(html), 0);
+  setTimeout(() => scrubIfResultCard(html), 50);
+  setTimeout(() => scrubIfResultCard(html), 150);
   console.log(`[${MODULE_ID}] injected first-card`, { actor: actor.name, power: item.name });
   return true;
 }
-
-Hooks.on("renderChatMessage", (message, $html) => {
-  try { const root = $html?.[0] || $html; tryInject(message, root); }
-  catch(e){ console.error(`[${MODULE_ID}] renderChatMessage error`, e); }
-});
 
 Hooks.on("renderChatMessageHTML", (message, html) => {
   try { tryInject(message, html); }
