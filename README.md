@@ -23,5 +23,7 @@ Mostra **ACTION**, **DURATION** e **COST** dos poderes diretamente no **primeiro
 - Código simples em **`main.js`** e estilo em **`styles.css`**.
 - Licença **MIT**.
 
+Manifest link: https://raw.githubusercontent.com/rodrigosinistro/marvel-multiverse-chat-power-details/main/module.json
+
 ---
 v1.0.0 • 2025-09-05
