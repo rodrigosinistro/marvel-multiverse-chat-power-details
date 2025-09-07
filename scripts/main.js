@@ -1,6 +1,6 @@
 
 const MODULE_ID = "marvel-multiverse-chat-power-details";
-const VERSION = "1.2.4";
+const VERSION = "1.7.0";
 
 const FIELDS = ["action","duration","cost","trigger","range"];
 const lastPowerByActor = new Map(); // actorId -> {itemId, uuid, at}
@@ -138,4 +138,89 @@ Hooks.on("renderChatMessageHTML", async (message, html) => {
     processed.add(id);
     log("inserted into description", { id, item: item.name });
   }catch(e){ err(e); }
+});
+
+
+/** libWrapper injection on ChatMessage#getHTML: runs for all clients (v13 still calls it) */
+Hooks.once("ready", () => {
+  try {
+    if (!globalThis.libWrapper) {
+      console.warn(`[${MODULE_ID}] libWrapper not found; fallback to renderChatMessageHTML hook only.`);
+      return;
+    }
+    libWrapper.register(MODULE_ID, "ChatMessage.prototype.getHTML", async function (wrapped, ...args) {
+      // Call original
+      const result = await wrapped(...args);
+      try {
+        const html = result?.[0] ?? result; // jQuery or HTMLElement
+        const message = this;
+        // Only description cards (not rolls/results)
+        if (!html || !(html instanceof Element)) return result;
+        const contentEl = html.querySelector(".message-content") || html;
+        if (!contentEl) return result;
+        if (contentEl.querySelector(".mcpd-card")) return result;
+        if (html.querySelector(".dice-roll, .dice-result, .mm-dr-buttons, .mm-dr, .mmdr, [data-mmdr]")) return result;
+
+        // Detect "power:" line and resolve item on the speaker actor
+        const flavor = String(message.flavor ?? "");
+        const contentText = String(contentEl.innerText ?? "");
+        const m = (flavor + "\n" + contentText).match(/(?:power|poder)\s*:\s*([^\n\r<]+)/i);
+        const powerName = m?.[1]?.trim();
+        const actorId = message.speaker?.actor;
+        if (!powerName || !actorId) return result;
+
+        const actor = game.actors?.get(actorId);
+        if (!actor) return result;
+        const target = norm(powerName);
+        const item = actor.items?.find(it => (it.type||"").toLowerCase()==="power" && norm(it.name)===target) ?? null;
+        if (!item) return result;
+
+        const fields = collectFieldsFromItem(item);
+        if (!fields) return result;
+        const boxHTML = buildMetaBox(fields);
+        const ps = contentEl.querySelectorAll("p");
+        if (ps.length) ps[ps.length-1].insertAdjacentHTML("afterend", boxHTML);
+        else contentEl.insertAdjacentHTML("beforeend", boxHTML);
+
+        console.log(`[${MODULE_ID}] injected via libWrapper/getHTML`, { id: message.id, power: item.name });
+      } catch (e) {
+        console.error(`[${MODULE_ID}] libWrapper injection error`, e);
+      }
+      return result;
+    }, "WRAPPER");
+  } catch (e) {
+    console.error(`[${MODULE_ID}] libWrapper register error`, e);
+  }
+});
+
+// Fallback: still attempt via renderChatMessageHTML for environments where getHTML isn't wrapped
+Hooks.on("renderChatMessageHTML", async (message, html) => {
+  try {
+    const el = html;
+    const contentEl = el.querySelector?.(".message-content") || el;
+    if (!contentEl || contentEl.querySelector?.(".mcpd-card")) return;
+    if (el.querySelector?.(".dice-roll, .dice-result, .mm-dr-buttons, .mm-dr, .mmdr, [data-mmdr]")) return;
+
+    const flavor = String(message.flavor ?? "");
+    const contentText = String(contentEl.innerText ?? "");
+    const m = (flavor + "\\n" + contentText).match(/(?:power|poder)\\s*:\\s*([^\\n\\r<]+)/i);
+    const powerName = m?.[1]?.trim();
+    const actorId = message.speaker?.actor;
+    if (!powerName || !actorId) return;
+
+    const actor = game.actors?.get(actorId);
+    if (!actor) return;
+    const target = norm(powerName);
+    const item = actor.items?.find(it => (it.type||"").toLowerCase()==="power" && norm(it.name)===target) ?? null;
+    if (!item) return;
+    const fields = collectFieldsFromItem(item);
+    if (!fields) return;
+    const boxHTML = buildMetaBox(fields);
+    const ps = contentEl.querySelectorAll?.("p");
+    if (ps?.length) ps[ps.length-1].insertAdjacentHTML("afterend", boxHTML);
+    else contentEl.insertAdjacentHTML?.("beforeend", boxHTML);
+    console.log(`[${MODULE_ID}] injected via renderChatMessageHTML`, { id: message.id, power: item.name });
+  } catch (e) {
+    console.error(`[${MODULE_ID}] fallback render error`, e);
+  }
 });
