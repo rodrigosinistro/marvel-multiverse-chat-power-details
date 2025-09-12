@@ -2,7 +2,7 @@
   "id": "marvel-multiverse-chat-power-details",
   "title": "Marvel Multiverse - Chat Power Details",
   "description": "Exibe Action/Duration/Cost/Trigger/Range no chat.",
-  "version": "1.7.0",
+  "version": "1.7.2",
   "compatibility": {
     "minimum": "10",
     "verified": "13"
@@ -22,6 +22,6 @@
     "styles/main.css"
   ],
   "manifest": "https://raw.githubusercontent.com/rodrigosinistro/marvel-multiverse-chat-power-details/main/module.json",
-  "download": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details/releases/download/v1.7.0/marvel-multiverse-chat-power-details-1.7.0.zip",
+  "download": "https://github.com/rodrigosinistro/marvel-multiverse-chat-power-details/releases/download/v1.7.2/marvel-multiverse-chat-power-details-1.7.2.zip",
   "license": "MIT"
 }
