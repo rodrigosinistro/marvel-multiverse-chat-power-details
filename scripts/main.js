@@ -1,6 +1,6 @@
 
 const MODULE_ID = "marvel-multiverse-chat-power-details";
-const VERSION = "1.7.0";
+const VERSION = "1.7.2";
 
 const FIELDS = ["action","duration","cost","trigger","range"];
 const lastPowerByActor = new Map(); // actorId -> {itemId, uuid, at}
@@ -99,9 +99,22 @@ Hooks.on("renderChatMessageHTML", async (message, html) => {
     // Abort if this looks like a roll/result or DR helper card
     const contentEl = html.querySelector(".message-content") || html;
     const innerText = norm(contentEl?.innerText || "");
-    if (
+    
+    const rawText0 = String(contentEl?.innerText || "");
+    const text0 = rawText0
+      .replace(/damagetype\s*:\s*\w+/ig, "")
+      .replace(/tipo\s+de\s+dano\s*:\s*\w+/ig, "")
+      .trim();
+    const damageLike =
+      /\btakes\s+\d+\s+\w*\s*health\s+damage\b/i.test(text0) ||
+      /\bsofre\s+\d+\s+(de\s+)?dano\b/i.test(text0) ||
+      /\bre:\s*marveldie\b/i.test(text0) ||
+      /\bdamage\s*multiplier\b/i.test(text0) ||
+      /\bdamageReduction\b/.test(text0) ||
+      /\bheal(?:ed|s)?\b|\bcura\b/i.test(text0);
+if (
       html.querySelector(".dice-roll, .dice-result, .dice-total, .dice-tooltip, .mm-dr-buttons, .mm-dr, .mmdr, [data-mmdr]")
-      || /\b(aplicar|½ dano|curar|resumo por alvo|apply|half damage|heal|damage reduction)\b/i.test(contentEl?.innerText || "")
+      || damageLike || /\b(aplicar|½ dano|curar|resumo por alvo|apply|half damage|heal|damage reduction)\b/i.test(contentEl?.innerText || "")
     ) return;
 
     const actorId = message.speaker?.actor;
@@ -159,7 +172,23 @@ Hooks.once("ready", () => {
         const contentEl = html.querySelector(".message-content") || html;
         if (!contentEl) return result;
         if (contentEl.querySelector(".mcpd-card")) return result;
-        if (html.querySelector(".dice-roll, .dice-result, .mm-dr-buttons, .mm-dr, .mmdr, [data-mmdr]")) return result;
+
+        // Abort if this looks like a roll/result or DR helper card
+        if (html.querySelector(".dice-roll, .dice-result, .dice-total, .dice-tooltip, .mm-dr-buttons, .mm-dr, .mmdr, [data-mmdr]")) return result;
+        const rawText = String(contentEl?.innerText || "");
+        const text = rawText
+          .replace(/damagetype\s*:\s*\w+/ig, "")
+          .replace(/tipo\s+de\s+dano\s*:\s*\w+/ig, "")
+          .trim();
+        const isDamageText =
+          /\btakes\s+\d+\s+\w*\s*health\s+damage\b/i.test(text) ||
+          /\bsofre\s+\d+\s+(de\s+)?dano\b/i.test(text) ||
+          /\bre:\s*marveldie\b/i.test(text) ||
+          /\bdamage\s*multiplier\b/i.test(text) ||
+          /\bdamageReduction\b/.test(text) ||
+          /\bheal(?:ed|s)?\b|\bcura\b/i.test(text);
+        if (isDamageText) return result;
+    
 
         // Detect "power:" line and resolve item on the speaker actor
         const flavor = String(message.flavor ?? "");
